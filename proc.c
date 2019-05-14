@@ -7,6 +7,8 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define DO_LOG_THREADS 1
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -201,6 +203,11 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
+
+#ifdef DO_LOG_THREADS
+  cprintf("thread with tid %d assigned to process with pid %d through fork\n", np->thread->tid, np->pid);
+#endif
+
   np->sz = curproc->sz;
 
   if(curproc->thread->parentproc == 0)
@@ -270,7 +277,9 @@ clone(thread_func_type fn, void *data, void *child_stack)
     np->state = UNUSED;
     return -1;
   }
-
+#ifdef DO_LOG_THREADS
+  cprintf("thread with tid %d assigned to process with pid %d through clone\n", np->thread->tid, np->pid);
+#endif
   for(i = 0; i < NOFILE; i++)
     if(curproc->ofile[i])
       np->ofile[i] = filedup(curproc->ofile[i]);
@@ -308,7 +317,9 @@ threadexit(void)
   iput(curproc->cwd);
   end_op();
   curproc->cwd = 0;
-
+#ifdef DO_LOG_THREADS
+  cprintf("process with pid %d released thread with tid %d\n", curproc->pid, curproc->thread->tid);
+#endif
   acquire(&ptable.lock);
 
   // Detach thread from process
@@ -337,15 +348,22 @@ join(int tid)
 
   if(target_thread->parentproc != curproc)
     return -1;
-
+#ifdef DO_LOG_THREADS
+  cprintf("process with pid %d trying to join thread with tid %d\n", curproc->pid, tid);
+#endif
   acquire(&ptable.lock);
   for(;;){
     if(target_thread->state == EXITED){
       freethread(target_thread);
       release(&ptable.lock);
+#ifdef DO_LOG_THREADS
+      cprintf("process with pid %d successfully joined thread with tid %d\n", curproc->pid, tid);
+#endif
       return 0;
     }
-
+#ifdef DO_LOG_THREADS
+    cprintf("process with pid %d going on sleep to join thread with tid %d\n", curproc->pid, tid);
+#endif
     sleep(target_thread, &ptable.lock);
   }
 }
