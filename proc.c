@@ -363,6 +363,9 @@ exit(void)
   if(curproc == initproc)
     panic("init exiting");
 
+  if(curproc->thread->parentproc != 0)
+      panic("thread using exit to terminate");
+
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
     if(curproc->ofile[fd]){
@@ -384,6 +387,10 @@ exit(void)
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
+      if(p->thread != 0)
+        if(p->thread->parentproc != 0)
+          panic("exit before cleaning up threads");
+
       p->parent = initproc;
       if(p->state == ZOMBIE)
         wakeup1(initproc);
@@ -412,8 +419,6 @@ wait(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != curproc)
         continue;
-      if(p->thread->parentproc != 0)
-          continue;
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
