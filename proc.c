@@ -91,11 +91,16 @@ found:
 
   release(&ptable.lock);
 
-  // Allocate kernel stack.
-  if((p->kstack = kalloc()) == 0){
+  // Allocate kernel thread
+  if((p->thread = allocthread()) == 0){
     p->state = UNUSED;
     return 0;
   }
+  p->thread->proc = p;
+
+  // Set kernel stack.
+  p->kstack = p->thread->kstack;
+
   sp = p->kstack + KSTACKSIZE;
 
   // Leave room for trap frame.
@@ -191,7 +196,7 @@ fork(void)
 
   // Copy process state from proc.
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
-    kfree(np->kstack);
+    freethread(np->thread);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
@@ -287,7 +292,7 @@ wait(void)
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
-        kfree(p->kstack);
+        freethread(p->thread);
         p->kstack = 0;
         freevm(p->pgdir);
         p->pid = 0;

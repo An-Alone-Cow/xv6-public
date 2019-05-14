@@ -32,6 +32,17 @@ struct context {
   uint eip;
 };
 
+enum threadstate { FREE, ASSIGNED, EXITED };
+
+struct thread {
+  int tid;                     // Thread ID
+  enum threadstate state;      // Thread state
+
+  char *kstack;                // Kernel stack reserved for this thread
+
+  struct proc* proc;           // If non-zero, Process currently using this thread
+};
+
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
@@ -39,6 +50,7 @@ struct proc {
   uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
+  struct thread* thread;       // Thread assigned to this process
   enum procstate state;        // Process state
   int pid;                     // Process ID
   struct proc *parent;         // Parent process
