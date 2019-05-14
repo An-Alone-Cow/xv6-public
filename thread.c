@@ -76,3 +76,24 @@ exitthread(struct thread* t)
 
   release(&ttable.lock);
 }
+
+
+struct thread*
+getthread(int tid)
+{
+  struct thread *t;
+
+  acquire(&ttable.lock);
+
+  for(t = ttable.thread; t < &ttable.thread[NTHREAD]; t++)
+    if(t->tid == tid)
+      goto found;
+
+  release(&ttable.lock);
+  return 0;
+
+found:
+
+  release(&ttable.lock);
+  return t;
+}

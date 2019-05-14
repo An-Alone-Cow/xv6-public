@@ -37,6 +37,17 @@ sys_threadexit(void)
 }
 
 int
+sys_join(void)
+{
+    int tid;
+
+    if(argint(0, &tid) < 0)
+        return -1;
+
+    return join(tid);
+}
+
+int
 sys_exit(void)
 {
   exit();

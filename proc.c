@@ -202,7 +202,7 @@ fork(void)
     return -1;
   }
   np->sz = curproc->sz;
-  
+
   if(curproc->thread->parentproc == 0)
     np->parent = curproc;
   else
@@ -312,9 +312,9 @@ threadexit(void)
   acquire(&ptable.lock);
 
   // Detach thread from process
+  wakeup1(curproc->thread);
   exitthread(curproc->thread);
   curproc->thread = 0;
-  wakeup1(curproc->parent);
 
   // Cleanup process
   curproc->parent = initproc;
@@ -324,6 +324,30 @@ threadexit(void)
   // Jump into the scheduler, never to return.
   sched();
   panic("thread exit");
+}
+
+int
+join(int tid)
+{
+  struct proc *curproc = myproc();
+  struct thread *target_thread;
+
+  if((target_thread = getthread(tid)) == 0)
+    return -1;
+
+  if(target_thread->parentproc != curproc)
+    return -1;
+
+  acquire(&ptable.lock);
+  for(;;){
+    if(target_thread->state == EXITED){
+      freethread(target_thread);
+      release(&ptable.lock);
+      return 0;
+    }
+
+    sleep(target_thread, &ptable.lock);
+  }
 }
 
 // Exit the current process.  Does not return.
