@@ -52,6 +52,9 @@ found:
 void
 freethread(struct thread* t)
 {
+  if(t == 0)
+    return;
+
   acquire(&ttable.lock);
 
   t->tid = 0;
@@ -59,6 +62,17 @@ freethread(struct thread* t)
 
   t->proc = 0;
   t->parentproc = 0;
+
+  release(&ttable.lock);
+}
+
+void
+exitthread(struct thread* t)
+{
+  acquire(&ttable.lock);
+
+  t->state = EXITED;
+  t->proc = 0;
 
   release(&ttable.lock);
 }

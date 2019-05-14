@@ -122,11 +122,13 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 int             clone(thread_func_type, void*, void*);
+void            threadexit(void);
 
 // thread.c
 void            tinit(void);
 struct thread*  allocthread(void);
 void            freethread(struct thread*);
+void            exitthread(struct thread*);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

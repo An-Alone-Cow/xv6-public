@@ -287,6 +287,45 @@ clone(thread_func_type fn, void *data, void *child_stack)
   return np->thread->tid;
 }
 
+void
+threadexit(void)
+{
+  struct proc *curproc = myproc();
+  int fd;
+
+  if(curproc->thread->parentproc == 0)
+    panic("non-thread process exiting thread");
+
+  // Close all open files.
+  for(fd = 0; fd < NOFILE; fd++){
+    if(curproc->ofile[fd]){
+      fileclose(curproc->ofile[fd]);
+      curproc->ofile[fd] = 0;
+    }
+  }
+
+  begin_op();
+  iput(curproc->cwd);
+  end_op();
+  curproc->cwd = 0;
+
+  acquire(&ptable.lock);
+
+  // Detach thread from process
+  exitthread(curproc->thread);
+  curproc->thread = 0;
+  wakeup1(curproc->parent);
+
+  // Cleanup process
+  curproc->parent = initproc;
+  curproc->state = ZOMBIE;
+  wakeup1(initproc);
+
+  // Jump into the scheduler, never to return.
+  sched();
+  panic("thread exit");
+}
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.

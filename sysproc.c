@@ -30,6 +30,13 @@ sys_clone(void)
 }
 
 int
+sys_threadexit(void)
+{
+  threadexit();
+  return 0;
+}
+
+int
 sys_exit(void)
 {
   exit();
