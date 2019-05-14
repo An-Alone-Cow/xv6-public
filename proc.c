@@ -202,7 +202,12 @@ fork(void)
     return -1;
   }
   np->sz = curproc->sz;
-  np->parent = curproc;
+  
+  if(curproc->thread->parentproc == 0)
+    np->parent = curproc;
+  else
+    np->parent = curproc->thread->parentproc;
+
   *np->tf = *curproc->tf;
 
   // Clear %eax so that fork returns 0 in the child.
@@ -224,6 +229,62 @@ fork(void)
   release(&ptable.lock);
 
   return pid;
+}
+
+int
+clone(thread_func_type fn, void *data, void *child_stack)
+{
+  uint ustack[2];
+  int i;
+  struct proc *np;
+  struct proc *curproc = myproc();
+
+  // Allocate process.
+  if((np = allocproc()) == 0){
+    return -1;
+  }
+
+  // Set memory info
+  np->sz = curproc->sz;
+  np->pgdir = curproc->pgdir;
+
+  // Set thread parent
+  if(curproc->thread->parentproc == 0)
+    np->parent = np->thread->parentproc = curproc;
+  else
+    np->parent = np->thread->parentproc = curproc->thread->parentproc;
+
+  // Set process state
+  *np->tf = *curproc->tf;
+
+  np->tf->eax = 0;
+  np->tf->eip = (uint)fn;
+
+  // Setup returning user stack
+  ustack[0] = 0xffffffff;  // fake return PC
+  ustack[1] = (uint)data;
+  np->tf->esp = (uint)child_stack + PGSIZE - (2)*4;
+  if (copyout(np->pgdir, np->tf->esp, ustack, (2)*4) < 0){
+    freethread(np->thread);
+    np->kstack = 0;
+    np->state = UNUSED;
+    return -1;
+  }
+
+  for(i = 0; i < NOFILE; i++)
+    if(curproc->ofile[i])
+      np->ofile[i] = filedup(curproc->ofile[i]);
+  np->cwd = idup(curproc->cwd);
+
+  safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+
+  acquire(&ptable.lock);
+
+  np->state = RUNNABLE;
+
+  release(&ptable.lock);
+
+  return np->thread->tid;
 }
 
 // Exit the current process.  Does not return.
@@ -288,6 +349,8 @@ wait(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != curproc)
         continue;
+      if(p->thread->parentproc != 0)
+          continue;
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.

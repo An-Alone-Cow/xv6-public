@@ -58,6 +58,7 @@ freethread(struct thread* t)
   t->state = FREE;
 
   t->proc = 0;
+  t->parentproc = 0;
 
   release(&ttable.lock);
 }

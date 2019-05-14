@@ -41,6 +41,7 @@ struct thread {
   char *kstack;                // Kernel stack reserved for this thread
 
   struct proc* proc;           // If non-zero, Process currently using this thread
+  struct proc* parentproc;     // If non-zero, Process that initiated this thread
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };

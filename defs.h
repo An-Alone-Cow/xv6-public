@@ -121,6 +121,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int             clone(thread_func_type, void*, void*);
 
 // thread.c
 void            tinit(void);

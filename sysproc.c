@@ -14,6 +14,22 @@ sys_fork(void)
 }
 
 int
+sys_clone(void)
+{
+  thread_func_type fn;
+  void *data, *child_stack;
+
+  if(argptr(0, (void*)&fn, sizeof *fn) < 0)
+    return -1;
+  if(argptr(1, (void*)&data, 0) < 0)
+    return -1;
+  if(argptr(2, (void*)&child_stack, PGSIZE) < 0)
+    return -1;
+
+  return clone(fn, data, child_stack);
+}
+
+int
 sys_exit(void)
 {
   exit();
