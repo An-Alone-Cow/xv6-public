@@ -122,6 +122,28 @@ found:
   return p;
 }
 
+static int
+killproc(struct proc *p)
+{
+  int isthread = 0, pid;
+  if(p->thread == 0)
+    isthread = 1;
+  else if(p->thread->parentproc != 0)
+    isthread = 1;
+
+  pid = p->pid;
+  freethread(p->thread);
+  p->kstack = 0;
+  if(isthread == 0)
+    freevm(p->pgdir);
+  p->pid = 0;
+  p->parent = 0;
+  p->name[0] = 0;
+  p->killed = 0;
+  p->state = UNUSED;
+  return pid;
+}
+
 //PAGEBREAK: 32
 // Set up first user process.
 void
@@ -328,9 +350,7 @@ threadexit(void)
   curproc->thread = 0;
 
   // Cleanup process
-  curproc->parent = initproc;
-  curproc->state = ZOMBIE;
-  wakeup1(initproc);
+  killproc(curproc);
 
   // Jump into the scheduler, never to return.
   sched();
@@ -405,9 +425,10 @@ exit(void)
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
+      // Kill orphan threads
       if(p->thread != 0)
         if(p->thread->parentproc != 0)
-          panic("exit before cleaning up threads");
+          killproc(p);
 
       p->parent = initproc;
       if(p->state == ZOMBIE)
@@ -439,16 +460,7 @@ wait(void)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
-        // Found one.
-        pid = p->pid;
-        freethread(p->thread);
-        p->kstack = 0;
-        freevm(p->pgdir);
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        p->state = UNUSED;
+        pid = killproc(p);
         release(&ptable.lock);
         return pid;
       }
