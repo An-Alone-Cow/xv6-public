@@ -26,6 +26,10 @@ int uptime(void);
 int clone(void(*fn)(void*), void*, void*);
 int threadexit(void) __attribute__((noreturn));
 int join(int);
+int create_mutex();
+int acquire_mutex(int);
+int release_mutex(int);
+int delete_mutex(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -5,6 +5,7 @@ struct inode;
 struct pipe;
 struct proc;
 struct thread;
+struct mutex;
 struct rtcdate;
 struct spinlock;
 struct sleeplock;
@@ -131,6 +132,14 @@ struct thread*  allocthread(void);
 void            freethread(struct thread*);
 void            exitthread(struct thread*);
 struct thread*  getthread(int);
+
+// mutex.c
+void            minit(void);
+int             create_mutex();
+int             acquire_mutex(int);
+int             release_mutex(int);
+int             delete_mutex(int);
+void            delete_proc_mutexes(int);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

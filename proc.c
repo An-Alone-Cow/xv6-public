@@ -132,6 +132,7 @@ killproc(struct proc *p)
     isthread = 1;
 
   pid = p->pid;
+  delete_proc_mutexes(pid);
   freethread(p->thread);
   p->kstack = 0;
   if(isthread == 0)

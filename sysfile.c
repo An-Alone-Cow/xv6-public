@@ -443,3 +443,38 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+int sys_create_mutex(void)
+{
+  return create_mutex();
+}
+
+int sys_acquire_mutex(void)
+{
+  int mid;
+
+  if(argint(0, &mid) < 0)
+    return -1;
+
+  return acquire_mutex(mid);
+}
+
+int sys_release_mutex(void)
+{
+  int mid;
+
+  if(argint(0, &mid) < 0)
+    return -1;
+
+  return release_mutex(mid);
+}
+
+int sys_delete_mutex(void)
+{
+  int mid;
+
+  if(argint(0, &mid) < 0)
+    return -1;
+
+  return delete_mutex(mid);
+}
