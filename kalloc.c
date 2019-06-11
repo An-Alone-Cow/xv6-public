@@ -9,6 +9,9 @@
 #include "mmu.h"
 #include "spinlock.h"
 
+#define V2PAGENUM(a) (V2P(a) / PGSIZE)
+
+
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
                    // defined by the kernel linker script in kernel.ld
@@ -22,6 +25,7 @@ struct {
   int use_lock;
   struct run *freelist;
   uint num_free_pages;
+  ushort page_ref_count[PHYSTOP / PGSIZE];
 } kmem;
 
 // Initialization happens in two phases.
@@ -35,6 +39,7 @@ kinit1(void *vstart, void *vend)
   initlock(&kmem.lock, "kmem");
   kmem.use_lock = 0;
   kmem.num_free_pages = 0;
+  memset(kmem.page_ref_count, 0, sizeof(kmem.page_ref_count));
   freerange(vstart, vend);
 }
 
@@ -66,17 +71,23 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
-  memset(v, 1, PGSIZE);
-
   if(kmem.use_lock)
     acquire(&kmem.lock);
 
-  r = (struct run*)v;
+  int pagenum = V2PAGENUM(v);
+  if(kmem.page_ref_count[pagenum] > 0)
+    kmem.page_ref_count[pagenum]--;
 
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  kmem.num_free_pages++;
+  if(kmem.page_ref_count[pagenum] == 0) {
+    // Fill with junk to catch dangling refs.
+    memset(v, 1, PGSIZE);
+
+    r = (struct run *) v;
+
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+    kmem.num_free_pages++;
+  }
 
   if(kmem.use_lock)
     release(&kmem.lock);
@@ -97,6 +108,7 @@ kalloc(void)
   if(r) {
     kmem.freelist = r->next;
     kmem.num_free_pages--;
+    kmem.page_ref_count[V2PAGENUM(r)]++;
   }
 
   if(kmem.use_lock)
@@ -117,4 +129,55 @@ numfreepages(void)
     release(&kmem.lock);
 
   return num_free_pages;
+}
+
+void
+kincrefcount(char *v)
+{
+  if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+    panic("kincrefcount");
+
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+
+  kmem.page_ref_count[V2PAGENUM(v)]++;
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+}
+
+void
+kdecrefcount(char *v)
+{
+  if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+    panic("kdecrefcount");
+
+  int pagenum = V2PAGENUM(v);
+  if(kmem.page_ref_count[pagenum] <= 1)
+    panic("kdecrefcount");
+
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+
+  kmem.page_ref_count[pagenum]--;
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+}
+
+ushort
+krefcount(char *v)
+{
+  if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+    panic("krefcount");
+
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+
+  ushort refcount = kmem.page_ref_count[V2PAGENUM(v)];
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+
+  return refcount;
 }
