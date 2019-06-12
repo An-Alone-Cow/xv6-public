@@ -144,7 +144,7 @@ delete_mutex(int mid)
   if((m = getmutex(mid)) == 0)
     return -1;
 
-  if(m->pid != pid)
+  if(m->ownerpid != pid)
     return -1;
 
   acquire(&mtable.lock);
@@ -163,7 +163,7 @@ delete_proc_mutexes(int pid)
   acquire(&mtable.lock);
 
   for(m = mtable.mutex; m < &mtable.mutex[NMUTEX]; m++)
-    if(m->pid == pid)
+    if(m->ownerpid == pid)
       deallocmutex(m);
 
   release(&mtable.lock);
